@@ -41,6 +41,9 @@ export default async function AppLayout({
           <NavLink href="/accounts" icon="🤝">
             Accounts
           </NavLink>
+          <NavLink href="/data" icon="🛰️">
+            Data
+          </NavLink>
         </nav>
 
         <div className="mt-auto border-t border-slate-200 pt-3">

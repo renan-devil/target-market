@@ -60,26 +60,37 @@ To send real e-mails, set `EMAIL_PROVIDER=resend` and `RESEND_API_KEY` in `.env`
 
 ## Loading real industrial sites (OpenStreetMap)
 
-The seed gives you ~150 realistic sample sites. To pull **real** sites from
-OpenStreetMap:
+The seed gives you ~150 realistic sample sites. Real industrial sites come from
+OpenStreetMap — there are two ways to import them.
+
+### In the app (no terminal needed)
+
+Go to **Data** in the sidebar (`/data`). Pick the countries, set a per-country
+limit, and click **Sync**. Each country is imported in turn with live progress,
+and the source counts update as it runs. When you're happy with the real data,
+**Remove sample sites** clears the seed so the map shows only real sites.
+
+### From the CLI
 
 ```bash
 npm run import:osm -- --country FR --limit 400
-npm run import:osm -- --country DE --limit 300
-npm run import:osm -- --country US --limit 400
+npm run import:osm -- --country FR,DE,US --limit 400   # multiple at once
 ```
 
-- `--country` — ISO-2 country code (FR, DE, ES, IT, NL, BE, PL, GB, US, …)
-- `--limit`   — max sites to fetch (default 400)
-- `--endpoint`— alternate Overpass endpoint (default `overpass-api.de`)
+- `--country` — ISO-2 code(s), comma-separated (FR, DE, ES, IT, NL, BE, PL, GB, US)
+- `--limit`   — max sites per country (default 400)
+- `--endpoint`— alternate Overpass endpoint (default `OVERPASS_ENDPOINT`)
 
-OSM does not carry headcount or turnover, so those are left empty on imported
-sites — enrich them later (manually, from a registry, or via the tagging tools).
-Industry is inferred from OSM tags.
+Both paths share the same logic (`src/lib/osm.ts`) and are idempotent —
+re-running updates existing sites instead of duplicating them. OSM does not
+carry headcount or turnover, so those are left empty on imported sites (enrich
+them later from a registry or via the tagging tools). Industry is inferred from
+OSM tags.
 
-> **Network note:** the importer calls the public Overpass API. In a restricted
-> environment you must allow egress to `overpass-api.de` (or your chosen
-> endpoint). On a normal deployment it works without configuration.
+> **Network note:** importing calls the public Overpass API. The host must allow
+> outbound HTTPS to `overpass-api.de` (or your configured `OVERPASS_ENDPOINT`).
+> In a locked-down sandbox the sync surfaces a clear "host not in allowlist"
+> error; on a normal deployment it works without configuration.
 
 ---
 
