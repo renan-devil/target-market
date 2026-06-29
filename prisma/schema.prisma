@@ -1,0 +1,123 @@
+// target-market — Prisma schema
+//
+// SQLite for zero-config local/dev. To move to Postgres for production,
+// change `provider` to "postgresql" and set DATABASE_URL accordingly.
+// (SQLite has no native enum/array/JSON types, so enums are stored as
+// strings and structured data as JSON strings — see src/lib/types.ts.)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// --- Auth -------------------------------------------------------------------
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  name        String?
+  createdAt   DateTime @default(now())
+  lastLoginAt DateTime?
+
+  icpProfiles IcpProfile[]
+}
+
+// One-time magic-link tokens. We store only a hash of the token.
+model MagicToken {
+  id        String   @id @default(cuid())
+  email     String
+  tokenHash String   @unique
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+// --- ICP / signal analysis --------------------------------------------------
+
+model IcpProfile {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  websiteText String   @default("")
+  icpText     String   @default("")
+
+  // JSON-encoded SignalAnalysisResult (see src/lib/types.ts). Null until analyzed.
+  analysisJson String?
+  model        String?
+  analyzedAt   DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// --- Industrial sites + account penetration --------------------------------
+
+model Account {
+  id           String   @id @default(cuid())
+  name         String
+  domain       String?
+  ownerEmail   String?
+  // relationship: none | prospect | contacted | in_discussion | customer | churned | partner
+  relationship String   @default("prospect")
+  notes        String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sites        IndustrialSite[]
+}
+
+model IndustrialSite {
+  id          String   @id @default(cuid())
+
+  // Provenance
+  source      String   @default("seed") // seed | osm | manual | import
+  externalId  String?                    // e.g. OSM "way/123456"
+
+  name        String
+  description String   @default("")
+
+  // Location
+  lat         Float
+  lng         Float
+  country     String   // ISO-ish: FR, DE, US, ...
+  region      String   @default("")
+  city        String   @default("")
+  address     String   @default("")
+
+  // Firmographics
+  industry    String   @default("Other") // high-level category (see src/lib/industries.ts)
+  sector      String   @default("")
+  naceCode    String?
+  headcount   Int?
+  turnoverEur Float?                       // annual turnover in EUR
+  website     String?
+
+  // Enrichment / classification (JSON string array of tags)
+  tagsJson    String   @default("[]")
+  // Raw OSM tags (JSON) kept for traceability
+  osmTagsJson String?
+  // 0-100 fit score against the most recent ICP, when computed
+  fitScore    Int?
+
+  // Account penetration
+  accountId   String?
+  account     Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([source, externalId])
+  @@index([country])
+  @@index([industry])
+  @@index([accountId])
+}
